@@ -1,0 +1,235 @@
+import csv
+import pickle
+
+def load_table(*file_paths, file_format='csv'):
+    """
+    Загружает таблицу из одного или нескольких файлов.
+
+    Параметры
+    file_paths: Пути к файлам.
+    file_format: Формат файлов (csv или pickle).
+
+    Возвращает
+    Данные таблицы в виде списка списков.
+
+    Исключения
+    FileNotFoundError: Если файл не найде.
+    Exception: Если произошла другая ошибка.
+    ValueError: Если структура не совпадает.
+
+    Звёздочка перед *file_paths розволяет принимать неограниченное кол-во элементов и помещает их в кортеж.
+    """
+    data = []
+    for file_path in file_paths:
+        try:
+            if file_format == 'csv':
+                with open(file_path, 'r') as file:
+                    reader = csv.reader(file)
+                    file_data = list(reader)
+            elif file_format == 'pickle':
+                with open(file_path, 'rb') as file:
+                    file_data = pickle.load(file)
+            else:
+                raise ValueError("Неподдерживаемый формат файла. Поддерживаются только 'csv' и 'pickle'.")
+
+            if not data:
+                data = file_data
+            else:
+                if len(data[0]) != len(file_data[0]):
+                    raise ValueError("кол-во столбцов файлов не совпадает.")
+                data.extend(file_data[1:])
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Файл {file_path} не найден.")
+        except Exception as e:
+            raise Exception(f"Произошла ошибка при загрузке файла {file_path}: {e}")
+
+    # Замена пустых строк на None
+    for row in data:
+        for i in range(len(row)):
+            if row[i] == '':
+                row[i] = None
+    return data
+
+def save_table(file_path, data, file_format='csv'):
+    """
+    Сохраняет таблицу в файл.
+
+    Параметры
+    file_path: Путь к файлу.
+    data: Данные таблицы в виде списка списков.
+    file_format: Формат файла ('csv' или 'pickle').
+    """
+    if file_format == 'csv':
+        with open(file_path, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(data)
+    elif file_format == 'pickle':
+        with open(file_path, 'wb') as file:
+            pickle.dump(data, file)
+    else:
+        raise ValueError("Неподдерживаемый формат файла. Поддерживаются только 'csv' и 'pickle'.")
+
+def save_table_tsv(file_path, data):
+    """
+    Сохраняет таблицу в TSV файл.
+
+    Параметры
+    file_path: Путь к файлу TSV.
+    data: Данные таблицы в виде списка списков.
+    """
+    with open(file_path, 'w') as file:
+        for row in data:
+            file.write('\t'.join(map(str, row)) + '\n')
+
+def get_rows_by_number(data, start, stop=None, copy_table=False):
+    """
+    Возвращает строки таблицы по их номерам.
+
+    Параметры
+    data: Данные таблицы в виде списка списков.
+    start: Начальный индекс строки.
+    stop: Конечный индекс строки (не включительно). Если None, возвращается одна строка.
+    copy_table: Если True, возвращается копия таблицы.
+
+    Возвращает
+    Список строк.
+
+    Исключения
+    ValueError: Если индексы строк отрицательные.
+    """
+    if start < 0 or (stop is not None and stop < 0):
+        raise ValueError("Индексы строк должны быть неотрицательными.")
+    if stop is None:
+        stop = start + 1
+    if copy_table:
+        return [row.copy() for row in data[start:stop]]
+    return data[start:stop]
+
+def get_rows_by_index(data, *vals, copy_table=False):
+    """
+    Возвращает строки таблицы по значениям в первом столбце.
+
+    Парамеры
+    data: Данные таблицы в виде списка списков.
+    vals: Значения для поиска в первом столбце.
+    copy_table: Если True, возвращается копия таблицы.
+
+    Возвращает
+    Список строк.
+    """
+    result = [row for row in data if row[0] in vals]
+    if copy_table:
+        return [row.copy() for row in result]
+    return result
+
+def get_column_types(data, by_number=True):
+    """
+    Возвращает типы данных для каждого столбца таблицы.
+
+    Параметры
+    data: Данные таблицы в виде списка списков.
+    by_number: Если True, ключи словаря будут индексами столбцов. Иначе - заголовками столбцов.
+
+    Возвращает
+    Словарь с типами данных столбцов.
+    """
+    types = {}
+    for i, col in enumerate(zip(*data)):
+        col_type = type(col[0]) if col[0] is not None else type(None)
+        types[i if by_number else data[0][i]] = col_type
+    return types
+
+def set_column_types(data, types_dict, by_number=True):
+    """
+    Устанавливает типы данных для столбцов таблицы.
+
+    Параметры
+    data: Данные таблицы в виде списка списков.
+    types_dict: Словарь с типами данных для столбцов.
+    by_number: Если True, ключи словаря будут индексами столбцов. Иначе - заголовками столбцов.
+    """
+    for key, col_type in types_dict.items():
+        col_index = key if by_number else data[0].index(key)
+        for row in data:
+            if row[col_index] is not None:
+                row[col_index] = col_type(row[col_index])
+
+def get_values(data, column=0):
+    """
+    Возвращает значения из указанного столбца таблицы.
+
+    Параметры
+    data: Данные таблицы в виде списка списков.
+    column: Индекс столбца.
+
+    Возвращает
+    Список значений из столбца.
+    """
+    return [row[column] for row in data]
+
+def get_value(data, column=0):
+    """
+    Возвращает значение из указанного столбца первой строки таблицы.
+
+    Параметры
+    data: Данные таблицы в виде списка списков.
+    column: Индекс столбца.
+
+    Возвращает
+    Значение из столбца.
+    """
+    return data[0][column]
+
+def set_values(data, values, column=0):
+    """
+    Устанавливает значения в указанный столбец таблицы.
+
+    Параметры
+    dat: Данные таблицы в виде списка списков.
+    values: Список значений для установки.
+    column: Индекс столбца.
+    """
+    for i, value in enumerate(values):
+        data[i][column] = value
+
+def set_value(data, value, column=0):
+    """
+    Устанавливает значение в указанный столбец первой строки таблицы.
+
+    Параметры
+    data: Данные таблицы в виде списка списков.
+    value: Значение для установки.
+    column: Индекс столбца.
+    """
+    data[0][column] = value
+
+def print_table(data):
+    """
+    Выводит таблицу на экран.
+
+    Параметры
+    data: Данные таблицы в виде списка списков.
+    """
+    for row in data:
+        print('\t'.join(map(str, row)))
+
+# Загрузка таблицы из нескольких файлов
+data = load_table('file1.csv', 'file2.csv', 'file3.csv', 'file4.csv', 'file5.csv', file_format='csv')
+
+# Вывод таблицы на экран
+print_table(data)
+
+# Примеры использования функций
+print("Значения из столбца 'Age':", get_values(data, column=1))
+print("Значение из столбца 'City' первой строки:", get_value(data, column=2))
+
+# Установка значений в столбец 'Age'
+set_values(data, [30, 25, 35, 28, 22, 31, 26, 27, 33, 29], column=1)
+
+# Установка значения в столбец 'City' первой строки
+set_value(data, 'New York City', column=2)
+
+# Вывод обновленной таблицы на экран
+print_table(data)
+
+
