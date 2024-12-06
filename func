@@ -1,0 +1,21 @@
+from fhalf import *
+from shalf import *
+
+# Загрузка таблицы из нескольких файлов
+data = load_table('file1.csv', 'file2.csv', 'file3.csv', 'file4.csv', 'file5.csv', file_format='csv')
+
+# Вывод таблицы на экран
+print_table(data)
+
+# Примеры использования функций
+print("Значения из столбца 'Age':", get_values(data, column=1))
+print("Значение из столбца 'City' первой строки:", get_value(data, column=2))
+
+# Установка значений в столбец 'Age'
+set_values(data, [30, 25, 35, 28, 22, 31, 26, 27, 33, 29], column=1)
+
+# Установка значения в столбец 'City' первой строки
+set_value(data, 'New York City', column=2)
+
+# Вывод обновленной таблицы на экран
+print_table(data)
