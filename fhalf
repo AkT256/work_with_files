@@ -1,0 +1,82 @@
+import csv
+import pickle
+
+def load_table(*file_paths, file_format='csv'):
+    """
+    Загружает таблицу из одного или нескольких файлов.
+
+    Параметры
+    file_paths: Пути к файлам.
+    file_format: Формат файлов (csv или pickle).
+
+    Возвращает
+    Данные таблицы в виде списка списков.
+
+    Исключения
+    FileNotFoundError: Если файл не найде.
+    Exception: Если произошла другая ошибка.
+    ValueError: Если структура не совпадает.
+
+    Звёздочка перед *file_paths розволяет принимать неограниченное кол-во элементов и помещает их в кортеж.
+    """
+    data = []
+    for file_path in file_paths:
+        try:
+            if file_format == 'csv':
+                with open(file_path, 'r') as file:
+                    reader = csv.reader(file)
+                    file_data = list(reader)
+            elif file_format == 'pickle':
+                with open(file_path, 'rb') as file:
+                    file_data = pickle.load(file)
+            else:
+                raise ValueError("Неподдерживаемый формат файла. Поддерживаются только 'csv' и 'pickle'.")
+
+            if not data:
+                data = file_data
+            else:
+                if len(data[0]) != len(file_data[0]):
+                    raise ValueError("кол-во столбцов файлов не совпадает.")
+                data.extend(file_data[1:])
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Файл {file_path} не найден.")
+        except Exception as e:
+            raise Exception(f"Произошла ошибка при загрузке файла {file_path}: {e}")
+
+    # Замена пустых строк на None
+    for row in data:
+        for i in range(len(row)):
+            if row[i] == '':
+                row[i] = None
+    return data
+
+def save_table(file_path, data, file_format='csv'):
+    """
+    Сохраняет таблицу в файл.
+
+    Параметры
+    file_path: Путь к файлу.
+    data: Данные таблицы в виде списка списков.
+    file_format: Формат файла ('csv' или 'pickle').
+    """
+    if file_format == 'csv':
+        with open(file_path, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(data)
+    elif file_format == 'pickle':
+        with open(file_path, 'wb') as file:
+            pickle.dump(data, file)
+    else:
+        raise ValueError("Неподдерживаемый формат файла. Поддерживаются только 'csv' и 'pickle'.")
+
+def save_table_tsv(file_path, data):
+    """
+    Сохраняет таблицу в TSV файл.
+
+    Параметры
+    file_path: Путь к файлу TSV.
+    data: Данные таблицы в виде списка списков.
+    """
+    with open(file_path, 'w') as file:
+        for row in data:
+            file.write('\t'.join(map(str, row)) + '\n')
